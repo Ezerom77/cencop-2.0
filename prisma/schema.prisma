@@ -1,0 +1,143 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  role         Role     @default(EMPLOYEE)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  managedProjects Project[]    @relation("ProjectManager")
+  taskRecords     TaskRecord[]
+
+  @@map("users")
+}
+
+model Project {
+  id                 String        @id @default(cuid())
+  name               String
+  clientName         String        @map("client_name")
+  billingMethod      BillingMethod @map("billing_method")
+  managerId          String        @map("manager_id")
+  estimatedDocuments Int?          @map("estimated_documents")
+  deadline           DateTime?
+  status             ProjectStatus @default(ACTIVE)
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  manager     User         @relation("ProjectManager", fields: [managerId], references: [id])
+  taskRecords TaskRecord[]
+
+  @@map("projects")
+}
+
+model TaskRecord {
+  id                 String     @id @default(cuid())
+  projectId          String     @map("project_id")
+  employeeId         String     @map("employee_id")
+  scannerId          String?    @map("scanner_id")
+  stage              Stage
+  startTime          DateTime   @map("start_time")
+  endTime            DateTime?  @map("end_time")
+  documentsProcessed Int        @default(0) @map("documents_processed")
+  hoursWorked        Decimal    @default(0) @map("hours_worked") @db.Decimal(5, 2)
+  status             TaskStatus @default(IN_PROGRESS)
+  createdAt          DateTime   @default(now()) @map("created_at")
+
+  // Relations
+  project    Project      @relation(fields: [projectId], references: [id])
+  employee   User         @relation(fields: [employeeId], references: [id])
+  scanner    Scanner?     @relation(fields: [scannerId], references: [id])
+  scannerLog ScannerLog?
+
+  @@map("task_records")
+}
+
+model Scanner {
+  id              String        @id @default(cuid())
+  name            String
+  model           String?
+  currentCounter  Int           @default(0) @map("current_counter")
+  status          ScannerStatus @default(AVAILABLE)
+  lastMaintenance DateTime?     @map("last_maintenance")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  taskRecords TaskRecord[]
+  scannerLogs ScannerLog[]
+
+  @@map("scanners")
+}
+
+model ScannerLog {
+  id               String   @id @default(cuid())
+  taskRecordId     String   @unique @map("task_record_id")
+  scannerId        String   @map("scanner_id")
+  startCounter     Int      @map("start_counter")
+  endCounter       Int      @map("end_counter")
+  documentsScanned Int      @map("documents_scanned")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  // Relations
+  taskRecord TaskRecord @relation(fields: [taskRecordId], references: [id])
+  scanner    Scanner    @relation(fields: [scannerId], references: [id])
+
+  @@map("scanner_logs")
+}
+
+// Enums
+enum Role {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum BillingMethod {
+  PER_DOCUMENT @map("per_document")
+  PER_HOUR     @map("per_hour")
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+  CANCELLED
+}
+
+enum Stage {
+  RECEPTION       @map("reception")
+  PREPARATION     @map("preparation")
+  SCANNING        @map("scanning")
+  INDEXING        @map("indexing")
+  QUALITY_CONTROL @map("quality_control")
+  REASSEMBLY      @map("reassembly")
+  DELIVERY        @map("delivery")
+}
+
+enum TaskStatus {
+  IN_PROGRESS @map("in_progress")
+  COMPLETED   @map("completed")
+  PAUSED      @map("paused")
+}
+
+enum ScannerStatus {
+  AVAILABLE     @map("available")
+  IN_USE        @map("in_use")
+  MAINTENANCE   @map("maintenance")
+  OUT_OF_ORDER  @map("out_of_order")
+}
