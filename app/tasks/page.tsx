@@ -62,15 +62,21 @@ import Link from 'next/link'
 
 interface Task {
   id: string
-  title: string
-  description: string
+  title?: string // Hacer opcional ya que se generará dinámicamente
+  description?: string
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'ON_HOLD'
-  priority: 'LOW' | 'MEDIUM' | 'HIGH'
-  type: 'SCANNING' | 'INDEXING' | 'QUALITY_CONTROL' | 'METADATA'
-  estimatedPages: number
-  processedPages: number
-  assignedUserId: string
-  assignedUser: {
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH'
+  type?: 'SCANNING' | 'INDEXING' | 'QUALITY_CONTROL' | 'METADATA'
+  stage?: 'RECEPTION' | 'PREPARATION' | 'SCANNING' | 'INDEXING' | 'QUALITY_CONTROL' | 'REASSEMBLY' | 'DELIVERY'
+  estimatedPages?: number
+  processedPages?: number
+  assignedUserId?: string
+  assignedUser?: {
+    id: string
+    name: string
+    email: string
+  }
+  employee?: {
     id: string
     name: string
     email: string
@@ -80,11 +86,20 @@ interface Task {
     id: string
     name: string
   }
-  dueDate: string
+  dueDate?: string
   startedAt?: string
   completedAt?: string
   createdAt: string
-  updatedAt: string
+  updatedAt?: string
+  startTime?: string
+  endTime?: string
+  documentsProcessed?: number
+  scanner?: {
+    id: string
+    name: string
+    model: string
+    status: string
+  }
 }
 
 const TasksPage = () => {
@@ -237,6 +252,34 @@ const TasksPage = () => {
     }
   }
 
+  const getStageLabel = (stage: string) => {
+    switch (stage) {
+      case 'RECEPTION':
+        return 'Recepción'
+      case 'PREPARATION':
+        return 'Preparación'
+      case 'SCANNING':
+        return 'Escaneo'
+      case 'INDEXING':
+        return 'Indexación'
+      case 'QUALITY_CONTROL':
+        return 'Control de Calidad'
+      case 'REASSEMBLY':
+        return 'Reensamblado'
+      case 'DELIVERY':
+        return 'Entrega'
+      default:
+        return stage
+    }
+  }
+
+  const generateTaskTitle = (task: Task): string => {
+    const projectName = task.project?.name || 'Proyecto sin nombre'
+    const stage = task.stage || task.type || 'SCANNING' // Fallback al tipo si no hay stage
+    const stageLabel = getStageLabel(stage)
+    return `${projectName} - ${stageLabel}`
+  }
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'PENDING':
@@ -253,9 +296,11 @@ const TasksPage = () => {
   }
 
   const filteredTasks = tasks.filter(task => {
-    const matchesSearch = (task.title?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+    const taskTitle = generateTaskTitle(task)
+    const assignedUserName = task.assignedUser?.name || task.employee?.name || ''
+    const matchesSearch = taskTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (task.description?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
-                         (task.assignedUser?.name?.toLowerCase() ?? '').includes(searchTerm.toLowerCase())
+                         assignedUserName.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter
     const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter
     const matchesType = typeFilter === 'all' || task.type === typeFilter
@@ -265,8 +310,10 @@ const TasksPage = () => {
   })
 
   const calculateProgress = (task: Task) => {
-    if (task.estimatedPages === 0) return 0
-    return Math.round((task.processedPages / task.estimatedPages) * 100)
+    const estimated = task.estimatedPages || 0
+    const processed = task.processedPages || task.documentsProcessed || 0
+    if (estimated === 0) return 0
+    return Math.round((processed / estimated) * 100)
   }
 
   const uniqueProjects = Array.from(new Set(tasks.map(task => task.project.id)))
@@ -405,9 +452,9 @@ const TasksPage = () => {
                       <TableRow key={task.id}>
                         <TableCell>
                           <div>
-                            <div className="font-medium">{task.title}</div>
+                            <div className="font-medium">{generateTaskTitle(task)}</div>
                             <div className="text-sm text-muted-foreground line-clamp-1">
-                              {task.description}
+                              {task.description || 'Sin descripción'}
                             </div>
                           </div>
                         </TableCell>
@@ -418,15 +465,15 @@ const TasksPage = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge className={getPriorityColor(task.priority)}>
-                            {getPriorityLabel(task.priority)}
+                          <Badge className={getPriorityColor(task.priority || 'MEDIUM')}>
+                            {getPriorityLabel(task.priority || 'MEDIUM')}
                           </Badge>
                         </TableCell>
-                        <TableCell>{getTypeLabel(task.type)}</TableCell>
+                        <TableCell>{getTypeLabel(task.type || 'SCANNING')}</TableCell>
                         <TableCell>
                           <div className="flex items-center">
                             <User className="mr-2 h-4 w-4" />
-                            {task.assignedUser?.name ?? 'Sin asignar'}
+                            {task.assignedUser?.name || task.employee?.name || 'Sin asignar'}
                           </div>
                         </TableCell>
                         <TableCell>{task.project?.name ?? 'Sin proyecto'}</TableCell>
@@ -434,14 +481,14 @@ const TasksPage = () => {
                           <div className="space-y-1">
                             <Progress value={calculateProgress(task)} className="h-2" />
                             <div className="text-xs text-muted-foreground">
-                              {task.processedPages} / {task.estimatedPages} páginas
+                              {task.processedPages || task.documentsProcessed || 0} / {task.estimatedPages || 0} páginas
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center text-sm">
                             <Calendar className="mr-1 h-3 w-3" />
-                            {new Date(task.dueDate).toLocaleDateString()}
+                            {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Sin fecha límite'}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -518,9 +565,9 @@ const TasksPage = () => {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <CardTitle className="text-lg">{task.title}</CardTitle>
+                        <CardTitle className="text-lg">{generateTaskTitle(task)}</CardTitle>
                         <CardDescription className="mt-1 line-clamp-2">
-                          {task.description}
+                          {task.description || 'Sin descripción'}
                         </CardDescription>
                       </div>
                       <DropdownMenu>
@@ -563,8 +610,8 @@ const TasksPage = () => {
                         {getStatusIcon(task.status)}
                         <span className="ml-1">{getStatusLabel(task.status)}</span>
                       </Badge>
-                      <Badge className={getPriorityColor(task.priority)}>
-                        {getPriorityLabel(task.priority)}
+                      <Badge className={getPriorityColor(task.priority || 'MEDIUM')}>
+                        {getPriorityLabel(task.priority || 'MEDIUM')}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -573,7 +620,7 @@ const TasksPage = () => {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Progreso</span>
-                        <span>{task.processedPages} / {task.estimatedPages} páginas</span>
+                        <span>{task.processedPages || task.documentsProcessed || 0} / {task.estimatedPages || 0} páginas</span>
                       </div>
                       <Progress value={calculateProgress(task)} className="h-2" />
                     </div>
@@ -582,7 +629,7 @@ const TasksPage = () => {
                     <div className="space-y-2">
                       <div className="flex items-center text-sm text-muted-foreground">
                         <User className="mr-2 h-3 w-3" />
-                        {task.assignedUser?.name ?? 'Sin asignar'}
+                        {task.assignedUser?.name || task.employee?.name || 'Sin asignar'}
                       </div>
                       <div className="flex items-center text-sm text-muted-foreground">
                         <FileText className="mr-2 h-3 w-3" />
@@ -590,14 +637,14 @@ const TasksPage = () => {
                       </div>
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Calendar className="mr-2 h-3 w-3" />
-                        Vence: {new Date(task.dueDate).toLocaleDateString()}
+                        Vence: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Sin fecha límite'}
                       </div>
                     </div>
 
                     {/* Type */}
                     <div className="pt-2 border-t">
                       <span className="text-xs font-medium text-muted-foreground">
-                        {getTypeLabel(task.type)}
+                        {getTypeLabel(task.type || 'SCANNING')}
                       </span>
                     </div>
                   </CardContent>
