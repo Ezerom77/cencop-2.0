@@ -1,4 +1,4 @@
-// File: /Users/ezm3/Documents/dev/cencop 2.0/app/dashboard/page.tsx
+// File: /Users/ez/Documents/cencop-2.0/app/dashboard/page.tsx
 import * as entry from '../../../../app/dashboard/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

@@ -1,6 +1,6 @@
-# Sistema de Gestión y Seguimiento de Trabajo para Digitalización de Documentos
+# CENCOP 2.0 - Sistema de Digitalización
 
-Sistema integral para la gestión y seguimiento del trabajo de digitalización de documentos, desarrollado con Next.js 14, TypeScript, PostgreSQL y Prisma.
+Sistema moderno de digitalización y gestión de documentos para CENCOP con funcionalidades completas de monitoreo, gestión de proyectos y reportes.
 
 ## 🚀 Características Principales
 

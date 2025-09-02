@@ -15,48 +15,72 @@ export async function GET(request: NextRequest) {
 
     // Configuraciones del sistema (algunas pueden requerir permisos de admin)
     const systemSettings = {
-      application: {
-        name: 'CENCOP',
-        version: '2.0.0',
-        description: 'Sistema de Gestión de Digitalización',
-        supportEmail: 'soporte@cencop.com'
+      general: {
+        companyName: 'CENCOP',
+        companyLogo: '',
+        timezone: 'America/Mexico_City',
+        language: 'es',
+        currency: 'MXN',
+        dateFormat: 'DD/MM/YYYY'
       },
-      features: {
-        multipleProjects: true,
-        realTimeUpdates: true,
-        fileUpload: true,
-        reporting: true,
-        userManagement: true
+      email: {
+        smtpHost: '',
+        smtpPort: 587,
+        smtpUser: '',
+        smtpPassword: '',
+        fromEmail: 'noreply@cencop.com',
+        fromName: 'CENCOP Sistema',
+        encryption: 'tls' as const
       },
-      limits: {
-        maxFileSize: '10MB',
-        maxProjectsPerUser: 50,
-        maxTasksPerProject: 1000,
-        sessionTimeout: 24 // horas
+      backup: {
+        autoBackup: true,
+        backupFrequency: 'daily' as const,
+        retentionDays: 30,
+        lastBackup: new Date().toISOString()
       },
-      security: {
-        passwordMinLength: 8,
-        requireSpecialChars: true,
-        sessionTimeout: 1440, // minutos (24 horas)
-        maxLoginAttempts: 5
-      },
-      ui: {
-        defaultTheme: 'system',
-        availableLanguages: ['es', 'en'],
-        defaultLanguage: 'es',
-        dateFormat: 'DD/MM/YYYY',
-        timeFormat: '24h'
-      },
-      integrations: {
-        scannerSupport: true,
-        exportFormats: ['PDF', 'Excel', 'CSV'],
-        backupEnabled: true
+      maintenance: {
+        maintenanceMode: false,
+        maintenanceMessage: 'El sistema está en mantenimiento. Volveremos pronto.',
+        allowedIPs: ['127.0.0.1']
       }
     }
 
-    return NextResponse.json(systemSettings)
+    return NextResponse.json({ settings: systemSettings })
   } catch (error) {
     console.error('Error al obtener configuraciones del sistema:', error)
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const token = await getToken({ req: request })
+    
+    if (!token?.email) {
+      return NextResponse.json(
+        { error: 'No autorizado' },
+        { status: 401 }
+      )
+    }
+
+    const body = await request.json()
+    
+    // Verificar que el usuario tenga permisos de administrador
+    // Por ahora, simplemente aceptamos cualquier usuario autenticado
+    
+    // Aquí podrías guardar las configuraciones del sistema en la base de datos
+    // Por ahora, simplemente devolvemos éxito
+    console.log('Configuraciones del sistema actualizadas:', body)
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Configuraciones del sistema guardadas exitosamente' 
+    })
+  } catch (error) {
+    console.error('Error al guardar configuraciones del sistema:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

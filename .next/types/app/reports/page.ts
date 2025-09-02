@@ -1,4 +1,4 @@
-// File: /Users/ezm3/Documents/dev/cencop 2.0/app/reports/page.tsx
+// File: /Users/ez/Documents/cencop-2.0/app/reports/page.tsx
 import * as entry from '../../../../app/reports/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

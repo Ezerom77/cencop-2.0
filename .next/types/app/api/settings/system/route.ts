@@ -1,4 +1,4 @@
-// File: /Users/ezm3/Documents/dev/cencop 2.0/app/api/settings/system/route.ts
+// File: /Users/ez/Documents/cencop-2.0/app/api/settings/system/route.ts
 import * as entry from '../../../../../../app/api/settings/system/route.js'
 import type { NextRequest } from 'next/server.js'
 

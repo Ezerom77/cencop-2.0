@@ -71,32 +71,34 @@ interface Scanner {
   id: string
   name: string
   model: string
-  serialNumber: string
-  ipAddress: string
+  serialNumber?: string
+  ipAddress?: string
+  location?: string
   status: 'ONLINE' | 'OFFLINE' | 'SCANNING' | 'ERROR' | 'MAINTENANCE'
-  location: string
   assignedTo?: string
   lastScan?: string
   totalScans: number
-  pagesScanned: number
+  pagesScanned?: number
   errorCount: number
   uptime: number
-  version: string
-  settings: {
-    resolution: string
-    colorMode: string
-    format: string
-    autoFeed: boolean
-    duplexMode: boolean
+  version?: string
+  settings?: {
+    resolution?: string
+    colorMode?: string
+    autoFeed?: boolean
   }
-  stats: {
-    todayScans: number
-    weekScans: number
-    monthScans: number
-    avgScanTime: number
+  stats?: {
+    dailyScans: number
+    weeklyScans: number
+    monthlyScans: number
   }
-  createdAt: string
-  updatedAt: string
+  // Campos adicionales de la API
+  pagesThisMonth?: number
+  usageThisMonth?: number
+  avgPagesPerDay?: number
+  lastUsed?: string
+  lastUsedBy?: string
+  avgScanTime?: number
 }
 
 const ScannersPage = () => {
@@ -248,21 +250,38 @@ const ScannersPage = () => {
   const filteredScanners = scanners.filter(scanner => {
     const matchesSearch = scanner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          scanner.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         scanner.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         scanner.ipAddress.includes(searchTerm)
+                         (scanner.location?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+                         (scanner.ipAddress?.includes(searchTerm) || false)
     const matchesStatus = statusFilter === 'all' || scanner.status === statusFilter
     const matchesLocation = locationFilter === 'all' || scanner.location === locationFilter
     
     return matchesSearch && matchesStatus && matchesLocation
   })
 
-  const uniqueLocations = Array.from(new Set(scanners.map(scanner => scanner.location).filter(location => location && location.trim())))
+  const uniqueLocations = Array.from(new Set(scanners.map(scanner => scanner.location).filter(location => location && location.trim() !== '')))
 
   const getHealthScore = (scanner: Scanner) => {
-    const uptimeScore = Math.min(scanner.uptime / (24 * 30), 1) * 40 // Max 40 points for uptime
-    const errorScore = Math.max(0, 30 - scanner.errorCount) // Max 30 points, -1 per error
-    const usageScore = Math.min(scanner.totalScans / 1000, 1) * 30 // Max 30 points for usage
-    return Math.round(uptimeScore + errorScore + usageScore)
+    // Validar que los valores existan y sean números válidos
+    const uptime = typeof scanner.uptime === 'number' && !isNaN(scanner.uptime) ? scanner.uptime : 0
+    const errorCount = typeof scanner.errorCount === 'number' && !isNaN(scanner.errorCount) ? scanner.errorCount : 0
+    const totalScans = typeof scanner.totalScans === 'number' && !isNaN(scanner.totalScans) ? scanner.totalScans : 0
+    
+    // Calcular puntuación de uptime (máximo 40 puntos)
+    // Basado en días de funcionamiento, máximo 30 días para 100%
+    const uptimeScore = Math.min(uptime / (24 * 30), 1) * 40
+    
+    // Calcular puntuación de errores (máximo 30 puntos)
+    // Restar 2 puntos por cada error, mínimo 0
+    const errorScore = Math.max(0, 30 - (errorCount * 2))
+    
+    // Calcular puntuación de uso (máximo 30 puntos)
+    // Basado en número de escaneos, máximo 500 escaneos para 100%
+    const usageScore = Math.min(totalScans / 500, 1) * 30
+    
+    const totalScore = uptimeScore + errorScore + usageScore
+    
+    // Asegurar que el resultado esté entre 0 y 100
+    return Math.round(Math.max(0, Math.min(100, totalScore)))
   }
 
   if (loading) {
@@ -348,7 +367,7 @@ const ScannersPage = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {scanners.reduce((total, scanner) => total + (scanner.stats?.todayScans || 0), 0)}
+                {scanners.reduce((total, scanner) => total + (scanner.stats?.dailyScans || 0), 0)}
               </div>
             </CardContent>
           </Card>
@@ -387,7 +406,7 @@ const ScannersPage = () => {
                 <SelectContent>
                   <SelectItem value="all">Todas las ubicaciones</SelectItem>
                   {uniqueLocations.map((location) => (
-                    <SelectItem key={location} value={location}>
+                    <SelectItem key={location} value={location!}>
                       {location}
                     </SelectItem>
                   ))}
@@ -421,11 +440,13 @@ const ScannersPage = () => {
                           <div>
                             <div className="font-medium">{scanner.name}</div>
                             <div className="text-sm text-muted-foreground">
-                              {scanner.model} - {scanner.serialNumber}
+                              {scanner.model}{scanner.serialNumber ? ` - ${scanner.serialNumber}` : ''}
                             </div>
-                            <div className="text-sm text-muted-foreground">
-                              IP: {scanner.ipAddress}
-                            </div>
+                            {scanner.ipAddress && (
+                              <div className="text-sm text-muted-foreground">
+                                IP: {scanner.ipAddress}
+                              </div>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -436,7 +457,7 @@ const ScannersPage = () => {
                         </TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-medium">{scanner.location}</div>
+                            <div className="font-medium">{scanner.location || 'Sin ubicación'}</div>
                             {scanner.assignedTo && (
                               <div className="text-sm text-muted-foreground">
                                 Asignado a: {scanner.assignedTo}
@@ -451,10 +472,10 @@ const ScannersPage = () => {
                               <span className="text-muted-foreground"> escaneos totales</span>
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {scanner.pagesScanned} páginas
+                              {scanner.pagesScanned || 0} páginas
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              Hoy: {scanner.stats?.todayScans ?? 0} escaneos
+                              Hoy: {scanner.stats?.dailyScans ?? 0} escaneos
                             </div>
                           </div>
                         </TableCell>
@@ -610,14 +631,18 @@ const ScannersPage = () => {
                   <CardContent className="space-y-4">
                     {/* Device Info */}
                     <div className="space-y-2">
+                      {scanner.serialNumber && (
+                        <div className="text-sm text-muted-foreground">
+                          <strong>Serie:</strong> {scanner.serialNumber}
+                        </div>
+                      )}
+                      {scanner.ipAddress && (
+                        <div className="text-sm text-muted-foreground">
+                          <strong>IP:</strong> {scanner.ipAddress}
+                        </div>
+                      )}
                       <div className="text-sm text-muted-foreground">
-                        <strong>Serie:</strong> {scanner.serialNumber}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        <strong>IP:</strong> {scanner.ipAddress}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        <strong>Ubicación:</strong> {scanner.location}
+                        <strong>Ubicación:</strong> {scanner.location || 'Sin ubicación'}
                       </div>
                       {scanner.assignedTo && (
                         <div className="text-sm text-muted-foreground">
@@ -643,15 +668,15 @@ const ScannersPage = () => {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span>Páginas procesadas:</span>
-                        <span className="font-medium">{scanner.pagesScanned}</span>
+                        <span className="font-medium">{scanner.pagesScanned || 0}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span>Escaneos hoy:</span>
-                        <span className="font-medium">{scanner.stats?.todayScans ?? 0}</span>
+                        <span className="font-medium">{scanner.stats?.dailyScans ?? 0}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span>Tiempo promedio:</span>
-                        <span className="font-medium">{scanner.stats?.avgScanTime ?? 0}s</span>
+                        <span className="font-medium">{scanner.avgScanTime ?? 0}s</span>
                       </div>
                     </div>
 

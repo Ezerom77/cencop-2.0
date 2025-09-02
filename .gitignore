@@ -28,6 +28,9 @@ dist-ssr
 
 # next.js
 .next
+.next/cache
+.next/temp
+.next/
 out
 
 # production
