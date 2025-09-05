@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     // Escáneres disponibles
     const availableScanners = await prisma.scanner.count({
       where: {
-        status: 'AVAILABLE'
+        status: 'ACTIVE'
       }
     })
 

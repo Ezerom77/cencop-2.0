@@ -38,6 +38,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/DropdownMenu'
+import { Label } from '@/components/ui/Label'
 import {
   Plus,
   Search,
@@ -74,7 +75,7 @@ interface Scanner {
   serialNumber?: string
   ipAddress?: string
   location?: string
-  status: 'ONLINE' | 'OFFLINE' | 'SCANNING' | 'ERROR' | 'MAINTENANCE'
+  status: 'ACTIVE' | 'MAINTENANCE'
   assignedTo?: string
   lastScan?: string
   totalScans: number
@@ -110,6 +111,9 @@ const ScannersPage = () => {
   const [locationFilter, setLocationFilter] = useState<string>('all')
   const [selectedScanner, setSelectedScanner] = useState<Scanner | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isStartScanDialogOpen, setIsStartScanDialogOpen] = useState(false)
+  const [currentCounter, setCurrentCounter] = useState('')
+  const [scannerToStart, setScannerToStart] = useState<Scanner | null>(null)
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
 
   useEffect(() => {
@@ -159,6 +163,16 @@ const ScannersPage = () => {
   }
 
   const handleScannerAction = async (scannerId: string, action: 'start' | 'pause' | 'stop' | 'restart') => {
+    if (action === 'start') {
+      // Open modal to request current counter
+      const scanner = scanners.find(s => s.id === scannerId)
+      if (scanner) {
+        setScannerToStart(scanner)
+        setIsStartScanDialogOpen(true)
+        return
+      }
+    }
+
     try {
       const response = await fetch(`/api/scanners/${scannerId}/action`, {
         method: 'POST',
@@ -187,16 +201,46 @@ const ScannersPage = () => {
     }
   }
 
+  const handleStartScan = async () => {
+    if (!scannerToStart || !currentCounter.trim()) {
+      toast.error('Por favor ingrese el contador actual')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/scanners/${scannerToStart.id}/start-scan`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          action: 'start',
+          currentCounter: parseInt(currentCounter)
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al iniciar el escaneo')
+      }
+
+      // Close modal and reset state
+      setIsStartScanDialogOpen(false)
+      setScannerToStart(null)
+      setCurrentCounter('')
+      
+      // Refresh the scanners list
+      fetchScanners()
+      toast.success('Escaneo iniciado correctamente')
+    } catch (error) {
+      console.error('Error starting scan:', error)
+      toast.error('Error al iniciar el escaneo')
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'ONLINE':
+      case 'ACTIVE':
         return 'bg-green-100 text-green-800'
-      case 'OFFLINE':
-        return 'bg-gray-100 text-gray-800'
-      case 'SCANNING':
-        return 'bg-blue-100 text-blue-800'
-      case 'ERROR':
-        return 'bg-red-100 text-red-800'
       case 'MAINTENANCE':
         return 'bg-yellow-100 text-yellow-800'
       default:
@@ -206,16 +250,10 @@ const ScannersPage = () => {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'ONLINE':
-        return 'En línea'
-      case 'OFFLINE':
-        return 'Desconectado'
-      case 'SCANNING':
-        return 'Escaneando'
-      case 'ERROR':
-        return 'Error'
+      case 'ACTIVE':
+        return 'Activo'
       case 'MAINTENANCE':
-        return 'Mantenimiento'
+        return 'En Mantenimiento'
       default:
         return status
     }
@@ -223,14 +261,8 @@ const ScannersPage = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'ONLINE':
-        return <Wifi className="h-4 w-4" />
-      case 'OFFLINE':
-        return <WifiOff className="h-4 w-4" />
-      case 'SCANNING':
-        return <Activity className="h-4 w-4" />
-      case 'ERROR':
-        return <XCircle className="h-4 w-4" />
+      case 'ACTIVE':
+        return <CheckCircle className="h-4 w-4" />
       case 'MAINTENANCE':
         return <Settings className="h-4 w-4" />
       default:
@@ -250,8 +282,8 @@ const ScannersPage = () => {
   const filteredScanners = scanners.filter(scanner => {
     const matchesSearch = scanner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          scanner.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (scanner.location?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (scanner.ipAddress?.includes(searchTerm) || false)
+                         (scanner.location && scanner.location.toLowerCase().includes(searchTerm.toLowerCase()))
+    
     const matchesStatus = statusFilter === 'all' || scanner.status === statusFilter
     const matchesLocation = locationFilter === 'all' || scanner.location === locationFilter
     
@@ -328,7 +360,7 @@ const ScannersPage = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Escáneres</CardTitle>
@@ -340,34 +372,23 @@ const ScannersPage = () => {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">En Línea</CardTitle>
-              <Wifi className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Activos</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {scanners.filter(s => s.status === 'ONLINE' || s.status === 'SCANNING').length}
+              <div className="text-2xl font-bold text-green-600">
+                {scanners.filter(s => s.status === 'ACTIVE').length}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Escaneando</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">En Mantenimiento</CardTitle>
+              <Settings className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {scanners.filter(s => s.status === 'SCANNING').length}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Páginas Hoy</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {scanners.reduce((total, scanner) => total + (scanner.stats?.dailyScans || 0), 0)}
+              <div className="text-2xl font-bold text-yellow-600">
+                {scanners.filter(s => s.status === 'MAINTENANCE').length}
               </div>
             </CardContent>
           </Card>
@@ -387,18 +408,15 @@ const ScannersPage = () => {
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
-                  <SelectItem value="ONLINE">En línea</SelectItem>
-                  <SelectItem value="OFFLINE">Desconectado</SelectItem>
-                  <SelectItem value="SCANNING">Escaneando</SelectItem>
-                  <SelectItem value="ERROR">Error</SelectItem>
-                  <SelectItem value="MAINTENANCE">Mantenimiento</SelectItem>
-                </SelectContent>
-              </Select>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem key="all" value="all">Todos los estados</SelectItem>
+                <SelectItem key="ACTIVE" value="ACTIVE">Activo</SelectItem>
+                <SelectItem key="MAINTENANCE" value="MAINTENANCE">En Mantenimiento</SelectItem>
+              </SelectContent>
+            </Select>
               <Select value={locationFilter} onValueChange={setLocationFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="Ubicación" />
@@ -697,34 +715,14 @@ const ScannersPage = () => {
                     {/* Action Buttons */}
                     <div className="pt-2 border-t">
                       <div className="flex gap-2">
-                        {scanner.status === 'ONLINE' && (
+                        {scanner.status === 'ACTIVE' && (
                           <Button
                             size="sm"
                             onClick={() => handleScannerAction(scanner.id, 'start')}
                           >
                             <Play className="mr-1 h-3 w-3" />
-                            Iniciar
+                            Iniciar escaneo
                           </Button>
-                        )}
-                        {scanner.status === 'SCANNING' && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleScannerAction(scanner.id, 'pause')}
-                            >
-                              <Pause className="mr-1 h-3 w-3" />
-                              Pausar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleScannerAction(scanner.id, 'stop')}
-                            >
-                              <Square className="mr-1 h-3 w-3" />
-                              Detener
-                            </Button>
-                          </>
                         )}
                         <Button
                           size="sm"
@@ -762,6 +760,46 @@ const ScannersPage = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Start Scan Dialog */}
+        <Dialog open={isStartScanDialogOpen} onOpenChange={setIsStartScanDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Iniciar Escaneo</DialogTitle>
+              <DialogDescription>
+                Ingrese el contador actual del escáner "{scannerToStart?.name}" para iniciar el escaneo.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="counter">Contador Actual</Label>
+                <Input
+                  id="counter"
+                  type="number"
+                  placeholder="Ej: 12345"
+                  value={currentCounter}
+                  onChange={(e) => setCurrentCounter(e.target.value)}
+                  min="0"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsStartScanDialogOpen(false)
+                  setScannerToStart(null)
+                  setCurrentCounter('')
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleStartScan}>
+                Iniciar Escaneo
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

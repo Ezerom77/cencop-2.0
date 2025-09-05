@@ -8,7 +8,7 @@ import { ScannerFilters, ScannerCreateData } from '@/types/api'
 const createScannerSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
   model: z.string().optional(),
-  status: z.nativeEnum(ScannerStatus).default(ScannerStatus.AVAILABLE)
+  status: z.nativeEnum(ScannerStatus).default(ScannerStatus.ACTIVE)
 })
 
 export async function GET(request: NextRequest) {
@@ -27,10 +27,17 @@ export async function GET(request: NextRequest) {
     
     const skip = (page - 1) * limit
 
-    const where: ScannerFilters = {}
+    const where: any = {}
     
-    if (status && status !== 'ALL') {
-      where.status = status as ScannerStatus
+    if (status && status !== 'all') {
+      // Mapear estados del frontend a los valores del enum
+      const statusMap: { [key: string]: string } = {
+        'active': 'ACTIVE',
+        'maintenance': 'MAINTENANCE',
+        'ACTIVE': 'ACTIVE',
+        'MAINTENANCE': 'MAINTENANCE'
+      }
+      where.status = statusMap[status] || status.toUpperCase()
     }
     
     if (search) {
@@ -183,10 +190,7 @@ export async function GET(request: NextRequest) {
           model: scanner.model || 'Modelo no especificado',
           serialNumber: `SN-${scanner.id.slice(-8).toUpperCase()}`,
           ipAddress: `192.168.1.${Math.floor(Math.random() * 200) + 50}`,
-          status: scanner.status === 'AVAILABLE' ? 'ONLINE' : 
-                 scanner.status === 'IN_USE' ? 'SCANNING' :
-                 scanner.status === 'MAINTENANCE' ? 'MAINTENANCE' :
-                 scanner.status === 'OUT_OF_ORDER' ? 'ERROR' : 'OFFLINE',
+          status: scanner.status === 'ACTIVE' ? 'ACTIVE' : 'MAINTENANCE',
           location: 'Oficina Principal', // Valor por defecto
           assignedTo: lastUsed?.taskRecord?.employee?.name || null,
           lastScan: lastUsed?.createdAt?.toISOString() || null,

@@ -56,9 +56,9 @@ const LoginPage = () => {
     setError('')
 
     const demoCredentials = {
-      admin: { email: 'admin@cencop.com', password: 'secret' },
-      manager: { email: 'gerente1@cencop.com', password: 'secret' },
-      employee: { email: 'empleado1@cencop.com', password: 'secret' }
+      admin: { email: 'admin@cencop.com', password: 'admin123' },
+      manager: { email: 'gerente1@cencop.com', password: 'gerente123' },
+      employee: { email: 'empleado1@cencop.com', password: 'empleado123' }
     }
 
     const credentials = demoCredentials[role]

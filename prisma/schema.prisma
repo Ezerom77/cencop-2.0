@@ -72,7 +72,7 @@ model Scanner {
   name            String
   model           String?
   currentCounter  Int           @default(0) @map("current_counter")
-  status          ScannerStatus @default(AVAILABLE)
+  status          ScannerStatus @default(ACTIVE)
   lastMaintenance DateTime?     @map("last_maintenance")
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
@@ -86,7 +86,7 @@ model Scanner {
 
 model ScannerLog {
   id               String   @id @default(cuid())
-  taskRecordId     String   @unique @map("task_record_id")
+  taskRecordId     String?  @unique @map("task_record_id")
   scannerId        String   @map("scanner_id")
   startCounter     Int      @map("start_counter")
   endCounter       Int      @map("end_counter")
@@ -94,8 +94,8 @@ model ScannerLog {
   createdAt        DateTime @default(now()) @map("created_at")
 
   // Relations
-  taskRecord TaskRecord @relation(fields: [taskRecordId], references: [id])
-  scanner    Scanner    @relation(fields: [scannerId], references: [id])
+  taskRecord TaskRecord? @relation(fields: [taskRecordId], references: [id])
+  scanner    Scanner     @relation(fields: [scannerId], references: [id])
 
   @@map("scanner_logs")
 }
@@ -136,8 +136,6 @@ enum TaskStatus {
 }
 
 enum ScannerStatus {
-  AVAILABLE     @map("available")
-  IN_USE        @map("in_use")
+  ACTIVE        @map("active")
   MAINTENANCE   @map("maintenance")
-  OUT_OF_ORDER  @map("out_of_order")
 }

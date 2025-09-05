@@ -1,3 +1,10 @@
+# Dependencies
+node_modules
+.pnpm-store/
+.yarn/
+yarn.lock
+package-lock.json
+
 # Logs
 logs
 *.log
@@ -7,34 +14,69 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Environment variables and secrets
+.env
+.env.*
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Next.js
+.next/
+out/
+build/
+dist/
+dist-ssr/
 *.local
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Prisma
+prisma/dev.db
+prisma/*.db
+prisma/migrations/**/migration.sql
+
+# Testing
+coverage/
+.nyc_output
+junit.xml
+*.lcov
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.swp
+*.swo
 .vite
-.env
-.env.local
 
-# next.js
-.next
-.next/cache
-.next/temp
-.next/
-out
-
-# production
-build
-
-# misc
+# Operating System
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Deployment
+.vercel
+
+# Temporary files
+*.tmp
+*.temp

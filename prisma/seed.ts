@@ -78,7 +78,7 @@ async function main() {
       name: 'Escáner Principal A',
       model: 'Canon DR-G2140',
       currentCounter: 15420,
-      status: 'AVAILABLE',
+      status: 'ACTIVE',
       lastMaintenance: new Date('2024-01-15')
     }
   })
@@ -88,7 +88,7 @@ async function main() {
       name: 'Escáner Principal B',
       model: 'Fujitsu fi-7160',
       currentCounter: 8750,
-      status: 'IN_USE',
+      status: 'ACTIVE',
       lastMaintenance: new Date('2024-01-10')
     }
   })
@@ -108,7 +108,7 @@ async function main() {
       name: 'Escáner Portátil',
       model: 'Brother ADS-1700W',
       currentCounter: 1850,
-      status: 'AVAILABLE',
+      status: 'ACTIVE',
       lastMaintenance: new Date('2024-01-05')
     }
   })
